@@ -8,7 +8,6 @@ SUBDIRSCMD =  $(patsubst %,%-$(CMD),$(SUBDIRS))
 
 all: subdirs$(CMD)
 
-
 clean:
 	$(MAKE) -C . CMD=clean
 

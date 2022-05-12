@@ -1,1 +1,0 @@
-../../common/dsp_server/link.cmd
