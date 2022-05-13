@@ -23,9 +23,8 @@
 
 #warning Eliminate global var
 static uint64_t s_rgb888hsv[640*480];
-
-
-
+static uint32_t s_wi2wo[640];
+static uint32_t s_hi2ho[480];
 
 template <>
 class LineDetector<TRIK_VIDTRANSCODE_CV_VIDEO_FORMAT_YUV422, TRIK_VIDTRANSCODE_CV_VIDEO_FORMAT_RGB565X> : public CVAlgorithm
@@ -33,8 +32,11 @@ class LineDetector<TRIK_VIDTRANSCODE_CV_VIDEO_FORMAT_YUV422, TRIK_VIDTRANSCODE_C
   private:
     uint64_t m_detectRange;
     uint32_t m_detectExpected;
-    /*uint32_t*/ double m_srcToDstShift;
 
+    uint32_t m_hStart;
+    uint32_t m_hStop;
+    uint32_t m_crossPoints;
+    int8_t   m_crossDetected;
 
     const int m_imageScaleCoeff = 1;
     int m_inImageFirstRow;
@@ -66,16 +68,9 @@ class LineDetector<TRIK_VIDTRANSCODE_CV_VIDEO_FORMAT_YUV422, TRIK_VIDTRANSCODE_C
     {
       const int32_t srcCol = range<int32_t>(_srcColBot, _srcCol, _srcColTop);
       const int32_t srcRow = range<int32_t>(_srcRowBot, _srcRow, _srcRowTop);
-      const /*uint32_t*/ double srcToDstShift  = m_srcToDstShift;
 
-
-      const int32_t dstRow = srcRow * srcToDstShift;
-      const int32_t dstCol = srcCol * srcToDstShift;
-
-/*
-      const int32_t dstRow = srcRow >> srcToDstShift;
-      const int32_t dstCol = srcCol >> srcToDstShift;
-*/
+      const int32_t dstRow = s_hi2ho[srcRow];
+      const int32_t dstCol = s_wi2wo[srcCol];
 
       const uint32_t dstOfs = dstRow*m_outImageDesc.m_lineLength + dstCol*sizeof(uint16_t);
 
@@ -115,6 +110,24 @@ class LineDetector<TRIK_VIDTRANSCODE_CV_VIDEO_FORMAT_YUV422, TRIK_VIDTRANSCODE_C
         drawOutputPixelBound(_srcCol  , _srcRow+adj, widthBot, widthTop, heightBot, heightTop, _outImage, _rgb888);
       }
     }
+
+
+    void __attribute__((always_inline)) drawRgbHorizontalLine(const int32_t _srcCol, 
+                                                              const int32_t _srcRow,
+                                                              const TrikCvImageBuffer& _outImage,
+                                                              const uint32_t _rgb888)
+    {
+      const int32_t widthBot  = 0;
+      const int32_t widthTop  = m_inImageDesc.m_width-1;
+      const int32_t heightBot = 0;
+      const int32_t heightTop = m_inImageDesc.m_height-1;
+
+      for (int adj = 0; adj < m_inImageDesc.m_width; ++adj)
+      {
+        drawOutputPixelBound(_srcCol+adj, _srcRow, widthBot, widthTop, heightBot, heightTop, _outImage, _rgb888);
+      }
+    }
+
 
     static bool __attribute__((always_inline)) detectHsvPixel(const uint32_t _hsv,
                                                               const uint64_t _hsv_range,
@@ -196,38 +209,51 @@ class LineDetector<TRIK_VIDTRANSCODE_CV_VIDEO_FORMAT_YUV422, TRIK_VIDTRANSCODE_C
 
     void DEBUG_INLINE convertImageYuyvToHsv(const TrikCvImageBuffer& _inImage)
     {
-      const uint32_t srcImageRowEffectiveSize       = m_inImageDesc.m_width*sizeof(uint16_t);
+      const uint32_t srcImageRowEffectiveSize       = m_inImageDesc.m_width;
       const uint32_t srcImageRowEffectiveToFullSize = m_inImageDesc.m_lineLength - srcImageRowEffectiveSize;
-      const int8_t* restrict srcImageRow      = _inImage.m_ptr;
-      const int8_t* restrict srcImageTo       = srcImageRow + m_inImageDesc.m_lineLength*m_inImageDesc.m_height;
+      const int8_t* restrict srcImageRowY     = _inImage.m_ptr;
+      const int8_t* restrict srcImageRowC     = _inImage.m_ptr + m_inImageDesc.m_lineLength*m_inImageDesc.m_height;
+      const int8_t* restrict srcImageToY      = srcImageRowY + m_inImageDesc.m_lineLength*m_inImageDesc.m_height;
       uint64_t* restrict rgb888hsvptr         = s_rgb888hsv;
 
       assert(m_inImageDesc.m_height % 4 == 0); // verified in setup
 #pragma MUST_ITERATE(4, ,4)
-      while (srcImageRow != srcImageTo)
+      while (srcImageRowY != srcImageToY)
       {
-        assert(reinterpret_cast<intptr_t>(srcImageRow) % 8 == 0); // let's pray...
-        const uint64_t* restrict srcImageCol4 = reinterpret_cast<const uint64_t*>(srcImageRow);
-        srcImageRow += srcImageRowEffectiveSize;
+        assert(reinterpret_cast<intptr_t>(srcImageRowY) % 8 == 0); // let's pray...
+        assert(reinterpret_cast<intptr_t>(srcImageRowC) % 8 == 0); // let's pray...
+        const uint32_t* restrict srcImageColY4 = reinterpret_cast<const uint32_t*>(srcImageRowY);
+        const uint32_t* restrict srcImageColC4 = reinterpret_cast<const uint32_t*>(srcImageRowC);
+        srcImageRowY += srcImageRowEffectiveSize;
+        srcImageRowC += srcImageRowEffectiveSize;
 
         assert(m_inImageDesc.m_width % 32 == 0); // verified in setup
 #pragma MUST_ITERATE(32/4, ,32/4)
-        while (reinterpret_cast<const int8_t*>(srcImageCol4) != srcImageRow)
+        while (reinterpret_cast<const int8_t*>(srcImageColY4) != srcImageRowY)
         {
-          const uint64_t yuyv2x = *srcImageCol4++;
+          assert(reinterpret_cast<const int8_t*>(srcImageColC4) != srcImageRowC);
 
-          const uint64_t rgb12 = convert2xYuyvToRgb888(_loll(yuyv2x));
+          const uint32_t yy4x = *srcImageColY4++;
+          const uint32_t uv4x = _swap4(*srcImageColC4++);
+
+          const uint32_t yuyv12 = (_unpklu4(yy4x)) | (_unpklu4(uv4x)<<8);
+          const uint32_t yuyv34 = (_unpkhu4(yy4x)) | (_unpkhu4(uv4x)<<8);
+
+          const uint64_t rgb12 = convert2xYuyvToRgb888(yuyv12);
           *rgb888hsvptr++ = _itoll(_loll(rgb12), convertRgb888ToHsv(_loll(rgb12)));
           *rgb888hsvptr++ = _itoll(_hill(rgb12), convertRgb888ToHsv(_hill(rgb12)));
 
-          const uint64_t rgb34 = convert2xYuyvToRgb888(_hill(yuyv2x));
+          const uint64_t rgb34 = convert2xYuyvToRgb888(yuyv34);
           *rgb888hsvptr++ = _itoll(_loll(rgb34), convertRgb888ToHsv(_loll(rgb34)));
           *rgb888hsvptr++ = _itoll(_hill(rgb34), convertRgb888ToHsv(_hill(rgb34)));
         }
 
-        srcImageRow += srcImageRowEffectiveToFullSize;
+        srcImageRowY += srcImageRowEffectiveToFullSize;
+        srcImageRowC += srcImageRowEffectiveToFullSize;
       }
     }
+
+
 
     void DEBUG_INLINE proceedImageHsv(TrikCvImageBuffer& _outImage)
     {
@@ -235,36 +261,42 @@ class LineDetector<TRIK_VIDTRANSCODE_CV_VIDEO_FORMAT_YUV422, TRIK_VIDTRANSCODE_C
       const uint32_t width          = m_inImageDesc.m_width;
       const uint32_t height         = m_inImageDesc.m_height;
       const uint32_t dstLineLength  = m_outImageDesc.m_lineLength;
-      const /*uint32_t*/ double srcToDstShift  = m_srcToDstShift;
       const uint64_t u64_hsv_range  = m_detectRange;
       const uint32_t u32_hsv_expect = m_detectExpected;
       uint32_t targetPointsPerRow;
       uint32_t targetPointsCol;
 
+      const uint32_t* restrict p_hi2ho = s_hi2ho;
       assert(m_inImageDesc.m_height % 4 == 0); // verified in setup
 #pragma MUST_ITERATE(4, ,4)
-      for (uint32_t srcRow=m_inImageFirstRow; srcRow < height; ++srcRow)
+      for (uint32_t srcRow=0; srcRow < height; ++srcRow)
       {
-        const uint32_t dstRow = (srcRow - m_inImageFirstRow/2) * srcToDstShift;
+        const uint32_t dstRow = *(p_hi2ho++);
         uint16_t* restrict dstImageRow = reinterpret_cast<uint16_t*>(_outImage.m_ptr + dstRow*dstLineLength);
 
         targetPointsPerRow = 0;
         targetPointsCol = 0;
+        const uint32_t* restrict p_wi2wo = s_wi2wo;
         assert(m_inImageDesc.m_width % 32 == 0); // verified in setup
 #pragma MUST_ITERATE(32, ,32)
         for (uint32_t srcCol=0; srcCol < width; ++srcCol)
         {
-          const uint32_t dstCol    = srcCol * srcToDstShift;
+          const uint32_t dstCol    = *(p_wi2wo++);
           const uint64_t rgb888hsv = *rgb888hsvptr++;
-
-          const bool det = detectHsvPixel(_loll(rgb888hsv), u64_hsv_range, u32_hsv_expect);
-          targetPointsPerRow += det;
-          targetPointsCol += det?srcCol:0;
-          writeOutputPixel(dstImageRow+dstCol, det?0x00ffff:_hill(rgb888hsv));
+          
+          bool det = false;
+          if (srcCol >= 5 && srcCol <= width - 5) {
+            det = detectHsvPixel(_loll(rgb888hsv), u64_hsv_range, u32_hsv_expect);
+            targetPointsPerRow += det;
+            targetPointsCol += det?srcCol:0;
+            writeOutputPixel(dstImageRow+dstCol, det?0x00ffff:_hill(rgb888hsv));
+          }
         }
         m_targetX      += targetPointsCol;
         m_targetY      += srcRow*targetPointsPerRow;
         m_targetPoints += targetPointsPerRow;
+        if (srcRow >= m_hStart && srcRow <= m_hStop)
+          m_crossPoints += targetPointsPerRow;
       }
     }
 
@@ -301,8 +333,22 @@ class LineDetector<TRIK_VIDTRANSCODE_CV_VIDEO_FORMAT_YUV422, TRIK_VIDTRANSCODE_C
         return false;
 
       #define min(x,y) x < y ? x : y;
-      m_srcToDstShift = min(static_cast<double>(m_outImageDesc.m_width)/m_inImageDesc.m_width, 
-                            static_cast<double>(m_outImageDesc.m_height)/m_inImageDesc.m_height);
+      const double srcToDstShift = min(static_cast<double>(m_outImageDesc.m_width)/m_inImageDesc.m_width, 
+                                 static_cast<double>(m_outImageDesc.m_height)/m_inImageDesc.m_height);
+
+      const uint32_t widthIn  = _inImageDesc.m_width;
+      const uint32_t widthOut = _outImageDesc.m_width;
+      uint32_t* restrict p_wi2wo = s_wi2wo;
+      for(int i = 0; i < widthIn; i++) {
+          *(p_wi2wo++) = i*srcToDstShift;
+      }
+
+      const uint32_t heightIn  = _inImageDesc.m_height;
+      const uint32_t heightOut = _outImageDesc.m_height;
+      uint32_t* restrict p_hi2ho = s_hi2ho;
+      for(uint32_t i = 0; i < heightIn; i++) {
+          *(p_hi2ho++) = i*srcToDstShift;
+      }
 
       /* Static member initialization on first instance creation */
       if (s_mult43_div == NULL || s_mult255_div == NULL)
@@ -338,6 +384,7 @@ class LineDetector<TRIK_VIDTRANSCODE_CV_VIDEO_FORMAT_YUV422, TRIK_VIDTRANSCODE_C
 
       m_targetX = 0;
       m_targetPoints = 0;
+      m_crossPoints = 0;
 
       m_inImageFirstRow = m_inImageDesc.m_height - m_inImageDesc.m_height/m_imageScaleCoeff;
 
@@ -367,6 +414,7 @@ class LineDetector<TRIK_VIDTRANSCODE_CV_VIDEO_FORMAT_YUV422, TRIK_VIDTRANSCODE_C
 
       XDAS_Int32 drawY = m_inImageFirstRow - m_inImageDesc.m_height/2 + m_inImageDesc.m_height/(2*m_imageScaleCoeff);
       const int hWidth = m_inImageDesc.m_width/2;
+      const int hHeight = m_inImageDesc.m_height/2;
       const int step = 40;
 
 #ifdef DEBUG_REPEAT
@@ -398,6 +446,14 @@ class LineDetector<TRIK_VIDTRANSCODE_CV_VIDEO_FORMAT_YUV422, TRIK_VIDTRANSCODE_C
       drawRgbThinLine(hWidth - 2*step, drawY, _outImage, 0xff00ff);
       drawRgbThinLine(hWidth + 2*step, drawY, _outImage, 0xff00ff);
 
+      m_hStart = hHeight;
+      m_hStop  = hHeight + 2*step;
+
+      int crossSize = static_cast<XDAS_UInt32>(m_crossPoints*100)/(m_inImageDesc.m_width*2*step);
+
+      drawRgbHorizontalLine(0, m_hStart, _outImage, 0xff0000);
+      drawRgbHorizontalLine(0, m_hStop, _outImage, 0xff0000);
+
       _outArgs.targetX = 0;
       _outArgs.targetY = 0;
       _outArgs.targetSize = 0;
@@ -406,13 +462,13 @@ class LineDetector<TRIK_VIDTRANSCODE_CV_VIDEO_FORMAT_YUV422, TRIK_VIDTRANSCODE_C
       {
         const int32_t inImagePixels = m_inImageDesc.m_height * m_inImageDesc.m_width;
         const int32_t targetX = m_targetX/m_targetPoints;
-//         const int32_t targetY = m_targetY/m_targetPoints;
 
         assert(m_inImageDesc.m_height > 0 && m_inImageDesc.m_width > 0); // more or less safe since no target points would be detected otherwise
 
         drawRgbTargetCenterLine(targetX, drawY, _outImage, 0xff0000);
 
         _outArgs.targetX = ((targetX - static_cast<int32_t>(m_inImageDesc.m_width) /2) * 100*2) / static_cast<int32_t>(m_inImageDesc.m_width);
+        _outArgs.targetY = crossSize;
         _outArgs.targetSize = static_cast<XDAS_UInt32>(m_targetPoints*100*m_imageScaleCoeff)/inImagePixels;
       }
 
