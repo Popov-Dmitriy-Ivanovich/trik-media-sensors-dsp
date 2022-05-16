@@ -32,6 +32,7 @@ extern "C" {
 
 #warning Eliminate global var
 static uint8_t s_y[320*240];
+static uint8_t s_y2[320*240];
 static uint8_t s_cb[320*240];
 static uint8_t s_cr[320*240];
 
@@ -161,20 +162,25 @@ class BallDetector<TRIK_VIDTRANSCODE_CV_VIDEO_FORMAT_YUV422, TRIK_VIDTRANSCODE_C
       uint16_t targetPointsCol;
       
 //separate Cb Cr
+      uint8_t* restrict y2   = reinterpret_cast<uint8_t*>(s_y2);
       uint8_t* restrict cb   = reinterpret_cast<uint8_t*>(s_cb);
       uint8_t* restrict cr   = reinterpret_cast<uint8_t*>(s_cr);
-      const uint16_t* restrict CbCr = reinterpret_cast<const uint16_t*>(_inImage.m_ptr + 
-                                                                    m_inImageDesc.m_lineLength*m_inImageDesc.m_height);
+      const uint8_t* restrict CbCr = reinterpret_cast<const uint8_t*>(_inImage.m_ptr);
       #pragma MUST_ITERATE(8, ,8)
-      for(int i = 0; i < imgSize; i++) {
-          *(cb++) = static_cast<uint8_t>(*CbCr);
-          *(cr++) = static_cast<uint8_t>((*CbCr) >> 8);
+      for(int i = 0; i < imgSize/2; i++) {
+          *(y2++) = *CbCr;
+          CbCr++;
+          *(cb++) = *CbCr;
+          CbCr++;
+          *(y2++) = *CbCr;
+          CbCr++;
+          *(cr++) = *CbCr;
           CbCr++;
       }
 
 
 //Sobel edge detection
-      const unsigned char* restrict y_in_sobel  = reinterpret_cast<const unsigned char*>(_inImage.m_ptr);
+      const unsigned char* restrict y_in_sobel  = reinterpret_cast<const unsigned char*>(s_y2);
       unsigned char* restrict   sobel_out = reinterpret_cast<unsigned char*>(s_y);
       IMG_sobel_3x3_8(y_in_sobel, sobel_out, width, height);
 
