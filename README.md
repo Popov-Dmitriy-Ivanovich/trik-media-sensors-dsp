@@ -1,5 +1,7 @@
 Build
 =====
 
+To build the project do:
 ```
-make DEPOT_DSP=<path to TI tools>
+make DEPOT=<path to TI tools>
+```
