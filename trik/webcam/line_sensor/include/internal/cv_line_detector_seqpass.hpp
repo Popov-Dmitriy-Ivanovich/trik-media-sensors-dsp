@@ -55,7 +55,7 @@ class LineDetector<TRIK_VIDTRANSCODE_CV_VIDEO_FORMAT_YUV422, TRIK_VIDTRANSCODE_C
     static void __attribute__((always_inline)) writeOutputPixel(uint16_t* restrict _rgb565ptr,
                                                                 const uint32_t _rgb888)
     {
-      *_rgb565ptr = ((_rgb888>>19)&0x001f) | ((_rgb888>>5)&0x07e0) | ((_rgb888<<8)&0xf800);
+      *_rgb565ptr = ((_rgb888>>3)&0x001f) | ((_rgb888>>5)&0x07e0) | ((_rgb888>>8)&0xf800);
     }
 
     void __attribute__((always_inline)) drawOutputPixelBound(const int32_t _srcCol,
