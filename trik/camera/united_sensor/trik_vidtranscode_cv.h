@@ -61,7 +61,11 @@ typedef struct TRIK_VIDTRANSCODE_CV_InArgs {
     TRIK_VIDTRANSCODE_CV_InArgsAlg	alg;
 } TRIK_VIDTRANSCODE_CV_InArgs;
 
-
+typedef struct XDAS_Target {
+    XDAS_Int8		x;    // [-100..100]
+    XDAS_Int8		y;    // [-100..100]
+    XDAS_UInt8  size; // [0..100]
+} XDAS_Target;
 typedef struct TRIK_VIDTRANSCODE_CV_OutArgsAlg {
     XDAS_Int8		targetX;    // [-100..100]
     XDAS_Int8		targetY;    // [-100..100]
@@ -72,6 +76,7 @@ typedef struct TRIK_VIDTRANSCODE_CV_OutArgsAlg {
     XDAS_UInt16		detectSatTolerance;   // [0..256]
     XDAS_UInt16		detectVal; // [0..256]
     XDAS_UInt16		detectValTolerance;   // [0..256]
+    XDAS_Target target[8];
 } TRIK_VIDTRANSCODE_CV_OutArgsAlg;
 
 typedef struct TRIK_VIDTRANSCODE_CV_OutArgs {

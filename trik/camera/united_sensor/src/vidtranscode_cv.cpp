@@ -8,7 +8,8 @@
 
 #include "internal/cv_algorithm.hpp"
 #include "internal/cv_ball_detector.hpp"
-
+#include "internal/cv_line_detector.hpp"
+#include "internal/cv_motion_detector.hpp"
 
 
 struct TrikCvPersistentData
@@ -71,14 +72,20 @@ XDAS_Int32 createCVAlgorithm(const TrikCvHandle* _handle,
 XDAS_Int32 handleSetupImageDescCreateCVAlgorithm(const TrikCvHandle* _handle,
                                                  TrikCvPersistentData& _pd,
                                                  const TrikCvImageDesc& _inImageDesc,
-                                                 const TrikCvImageDesc& _outImageDesc)
+                                                 const TrikCvImageDesc& _outImageDesc)//creates object of class, which we send as a param
 {
-#define IF_IN_OUT_FORMAT(_CVAlgorithm, _inFormat, _outFormat) \
-  return createCVAlgorithm<_CVAlgorithm<_inFormat, _outFormat> >(_handle, _pd, _inImageDesc, _outImageDesc)
-  
-  IF_IN_OUT_FORMAT(trik::cv::BallDetector, TRIK_VIDTRANSCODE_CV_VIDEO_FORMAT_YUV422, TRIK_VIDTRANSCODE_CV_VIDEO_FORMAT_RGB565X);
-#undef IF_IN_OUT_FORMAT
 
+  //T0D0 find condition for chosing detectors!
+  if (true){//create object of BallDetector for edge-line-sensor
+    return createCVAlgorithm<trik::cv::BallDetector<TRIK_VIDTRANSCODE_CV_VIDEO_FORMAT_YUV422,TRIK_VIDTRANSCODE_CV_VIDEO_FORMAT_RGB565X > >(_handle, _pd, _inImageDesc, _outImageDesc);
+  }
+  if (false){//crete object of LineDetector for line-sensor
+    return createCVAlgorithm<trik::cv::LineDetector<TRIK_VIDTRANSCODE_CV_VIDEO_FORMAT_YUV422, TRIK_VIDTRANSCODE_CV_VIDEO_FORMAT_RGB565X> >(_handle, _pd, _inImageDesc, _outImageDesc);
+  }
+  if (false){//create object of MotionDetector for motion-sensor
+    return createCVAlgorithm<trik::cv::MotionDetector<TRIK_VIDTRANSCODE_CV_VIDEO_FORMAT_YUV422, TRIK_VIDTRANSCODE_CV_VIDEO_FORMAT_RGB565X> >(_handle, _pd, _inImageDesc, _outImageDesc);
+  }
+  
   return IALG_EFAIL;
 }
 

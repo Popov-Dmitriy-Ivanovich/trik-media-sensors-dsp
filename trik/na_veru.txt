@@ -1,0 +1,3 @@
+same files:
+trik_vidranscode_cv.h
+cv_algorithm.h
