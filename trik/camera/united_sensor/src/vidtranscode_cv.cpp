@@ -10,8 +10,8 @@
 #include "internal/cv_ball_detector.hpp"
 #include "internal/cv_line_detector.hpp"
 #include "internal/cv_motion_detector.hpp"
-
-
+#include "internal/cv_mxn_detector.hpp"
+#include "internal/cv_object_detector.hpp"
 struct TrikCvPersistentData
 {
   std::auto_ptr<trik::cv::CVAlgorithm> m_cvAlgorithm;
@@ -85,7 +85,12 @@ XDAS_Int32 handleSetupImageDescCreateCVAlgorithm(const TrikCvHandle* _handle,
   if (false){//create object of MotionDetector for motion-sensor
     return createCVAlgorithm<trik::cv::MotionDetector<TRIK_VIDTRANSCODE_CV_VIDEO_FORMAT_YUV422, TRIK_VIDTRANSCODE_CV_VIDEO_FORMAT_RGB565X> >(_handle, _pd, _inImageDesc, _outImageDesc);
   }
-  
+  if (false){//create object of MxnDetector for mxn-sensor
+     return createCVAlgorithm<trik::cv::MxnDetector<TRIK_VIDTRANSCODE_CV_VIDEO_FORMAT_YUV422, TRIK_VIDTRANSCODE_CV_VIDEO_FORMAT_RGB565X> >(_handle, _pd, _inImageDesc, _outImageDesc);   
+  }
+  if (false){//create object of ObjectDetector for object-sensor
+     return createCVAlgorithm<trik::cv::object_sensor::ObjectDetector<TRIK_VIDTRANSCODE_CV_VIDEO_FORMAT_YUV422, TRIK_VIDTRANSCODE_CV_VIDEO_FORMAT_RGB565X> >(_handle, _pd, _inImageDesc, _outImageDesc);   
+  }
   return IALG_EFAIL;
 }
 

@@ -464,7 +464,7 @@ uint16_t* restrict BallDetector<TRIK_VIDTRANSCODE_CV_VIDEO_FORMAT_YUV422,
 uint16_t* restrict BallDetector<TRIK_VIDTRANSCODE_CV_VIDEO_FORMAT_YUV422,
                                 TRIK_VIDTRANSCODE_CV_VIDEO_FORMAT_RGB565X>::s_mult255_div = NULL;
 
-
+#undef min
 } /* **** **** **** **** **** * namespace cv * **** **** **** **** **** */
 
 } /* **** **** **** **** **** * namespace trik * **** **** **** **** **** */

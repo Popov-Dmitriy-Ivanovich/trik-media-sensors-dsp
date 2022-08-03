@@ -1,5 +1,7 @@
 move files "*_detector.hpp", "*_detector_seqpass.hpp" to folder united //DONE
-include them in new module (include in vidtranscode_cv.cpp)
-vidtranscode_cv.cpp line: 80 - find conditions
-unite mxn_sensor (same name as edge-line-sensor)
+include them in new module (include in vidtranscode_cv.cpp) //DONE
+unite mxn_sensor (same name as edge-line-sensor) //DONE
 unite object sensor (same name as edge-line-sensor)
+include object sensor into vidtranscode_cv.cpp
+vidtranscode_cv.cpp line: 80 - find conditions
+
