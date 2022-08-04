@@ -65,6 +65,8 @@ typedef struct TRIK_VIDTRANSCODE_CV_InArgsAlg {
     XDAS_UInt8      detectSatTol;
     XDAS_UInt8      detectVal;
     XDAS_UInt8      detectValTol;
+    XDAS_UInt8		jpgImageQuality;
+    XDAS_Bool		ifBlackAndWhite;
 } TRIK_VIDTRANSCODE_CV_InArgsAlg;
 
 typedef struct TRIK_VIDTRANSCODE_CV_InArgs {
@@ -89,6 +91,7 @@ typedef struct TRIK_VIDTRANSCODE_CV_OutArgsAlg {
     XDAS_UInt16		detectValTolerance;   // [0..256]
     XDAS_Int32      outColor[100];
     XDAS_Target     target[8];
+    XDAS_UInt32		size;
 
 } TRIK_VIDTRANSCODE_CV_OutArgsAlg;
 

@@ -12,6 +12,8 @@
 #include "internal/cv_motion_detector.hpp"
 #include "internal/cv_mxn_detector.hpp"
 #include "internal/cv_object_detector.hpp"
+#include "internal/cv_jpeg_encoder_wrapper.hpp"
+
 struct TrikCvPersistentData
 {
   std::auto_ptr<trik::cv::CVAlgorithm> m_cvAlgorithm;
